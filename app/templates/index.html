@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ten-ASIN Tool</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#1B2430; --surface:#222E3C; --surface2:#1E2835;
+  --line:#33445A; --line-soft:#2A3847;
+  --ink:#DCE5EF; --dim:#8396AC; --faint:#5B6E85;
+  --run:#3FB9D6; --ok:#4FB477; --warn:#E0A33E; --bad:#DD5E5E;
+  --sans:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,Consolas,monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  background:var(--bg);color:var(--ink);font-family:var(--sans);
+  font-size:15px;line-height:1.55;padding:28px 20px 70px;
+}
+.page{max-width:940px;margin:0 auto}
+
+/* ── masthead ── */
+.masthead{
+  display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;
+  padding-bottom:16px;margin-bottom:26px;border-bottom:1px solid var(--line);
+}
+.masthead h1{font-size:21px;font-weight:600;letter-spacing:-.2px}
+.masthead .sub{color:var(--dim);font-size:13.5px}
+.masthead .spacer{flex:1}
+.health{display:flex;gap:14px;font-size:12.5px;color:var(--dim);font-family:var(--mono)}
+.health span{display:flex;align-items:center;gap:6px}
+.led{width:7px;height:7px;border-radius:50%;background:var(--faint);flex:none}
+.led.up{background:var(--ok)}
+.led.down{background:var(--bad)}
+
+/* ── form ── */
+.field{margin-bottom:22px}
+.field > label{display:block;font-size:14px;font-weight:600;margin-bottom:5px}
+.field .help{color:var(--dim);font-size:13px;margin-bottom:9px}
+textarea,input[type=text]{
+  width:100%;background:var(--surface2);border:1px solid var(--line);
+  border-radius:5px;color:var(--ink);padding:11px 13px;
+  font-family:var(--sans);font-size:15px;
+}
+textarea{font-family:var(--mono);font-size:14.5px;min-height:132px;resize:vertical;letter-spacing:.4px}
+textarea:focus,input[type=text]:focus{outline:none;border-color:var(--run);
+  box-shadow:0 0 0 3px rgba(63,185,214,.14)}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media(max-width:620px){.pair{grid-template-columns:1fr}}
+
+.drop{
+  border:1px dashed var(--line);border-radius:5px;padding:18px 16px;
+  cursor:pointer;color:var(--dim);font-size:14px;text-align:center;
+  transition:border-color .15s,background .15s;
+}
+.drop:hover,.drop.over{border-color:var(--run);background:rgba(63,185,214,.05);color:var(--ink)}
+.drop.set{border-style:solid;border-color:var(--ok);color:var(--ink);text-align:left}
+.drop .fname{font-family:var(--mono);font-size:13.5px}
+.drop .clear{float:right;color:var(--faint);font-size:13px}
+.drop .clear:hover{color:var(--bad)}
+
+.counter{font-family:var(--mono);font-size:13px;color:var(--dim);margin-top:7px}
+.counter.bad{color:var(--bad)}
+.counter.good{color:var(--ok)}
+
+.go{
+  width:100%;margin-top:6px;padding:14px;border:0;border-radius:5px;
+  background:var(--run);color:#0E1720;font-family:var(--sans);
+  font-size:15px;font-weight:600;cursor:pointer;
+}
+.go:hover:not(:disabled){filter:brightness(1.08)}
+.go:disabled{background:var(--line);color:var(--faint);cursor:not-allowed}
+
+.alert{
+  border-left:3px solid var(--bad);background:rgba(221,94,94,.09);
+  padding:11px 14px;border-radius:0 4px 4px 0;font-size:14px;margin-bottom:20px;
+}
+
+/* ── run header ── */
+.runbar{
+  display:flex;gap:18px;flex-wrap:wrap;align-items:baseline;
+  font-family:var(--mono);font-size:13px;color:var(--dim);
+  padding:11px 14px;background:var(--surface2);
+  border:1px solid var(--line-soft);border-radius:5px;margin-bottom:22px;
+}
+.runbar b{color:var(--ink);font-weight:500}
+
+/* ── the line: 6 stations ── */
+.line{display:flex;margin-bottom:8px}
+.station{flex:1;position:relative;padding-top:20px;text-align:center}
+.station::before{
+  content:"";position:absolute;top:6px;left:0;right:0;height:2px;background:var(--line-soft);
+}
+.station:first-child::before{left:50%}
+.station:last-child::before{right:50%}
+.station .pin{
+  position:absolute;top:2px;left:50%;margin-left:-5px;width:10px;height:10px;
+  border-radius:50%;background:var(--bg);border:2px solid var(--line);
+}
+.station .nm{font-size:12.5px;color:var(--faint)}
+.station.done::before{background:var(--ok)}
+.station.done .pin{background:var(--ok);border-color:var(--ok)}
+.station.done .nm{color:var(--dim)}
+.station.now::before{background:linear-gradient(90deg,var(--ok),var(--run))}
+.station.now .pin{background:var(--run);border-color:var(--run);
+  box-shadow:0 0 0 4px rgba(63,185,214,.2)}
+.station.now .nm{color:var(--run);font-weight:600}
+.station.bad .pin{background:var(--bad);border-color:var(--bad)}
+.station.bad .nm{color:var(--bad)}
+
+.meter{height:3px;background:var(--line-soft);border-radius:3px;overflow:hidden;margin-bottom:6px}
+.meter i{display:block;height:100%;width:0;background:var(--run);transition:width .45s ease}
+.meterinfo{display:flex;justify-content:space-between;
+  font-family:var(--mono);font-size:12px;color:var(--faint);margin-bottom:20px}
+
+/* ── log ── */
+.logbox{
+  background:var(--surface2);border:1px solid var(--line-soft);border-radius:5px;
+  height:340px;overflow-y:auto;padding:12px 14px;
+  font-family:var(--mono);font-size:12.8px;line-height:1.72;
+}
+.logbox::-webkit-scrollbar{width:9px}
+.logbox::-webkit-scrollbar-thumb{background:var(--line);border-radius:9px}
+.ln{display:flex;gap:11px;white-space:pre-wrap;word-break:break-word}
+.ln .t{color:var(--faint);flex:none}
+.ln.info .m{color:var(--ink)}
+.ln.warn .m{color:var(--warn)}
+.ln.error .m{color:var(--bad)}
+
+/* ── results ── */
+.done-head{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:18px}
+.done-head h2{font-size:18px;font-weight:600}
+.done-head .t{color:var(--dim);font-size:13.5px;font-family:var(--mono)}
+.tally{display:flex;gap:26px;flex-wrap:wrap;padding:15px 18px;background:var(--surface2);
+  border:1px solid var(--line-soft);border-radius:5px;margin-bottom:22px}
+.tally div{display:flex;flex-direction:column;gap:1px}
+.tally .n{font-size:23px;font-weight:600;font-family:var(--mono)}
+.tally .l{font-size:12.5px;color:var(--dim)}
+.tally .ok .n{color:var(--ok)} .tally .wa .n{color:var(--warn)} .tally .ba .n{color:var(--bad)}
+
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;font-size:12.5px;color:var(--dim);font-weight:500;
+   padding:0 10px 8px;border-bottom:1px solid var(--line)}
+td{padding:11px 10px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+td.num{font-family:var(--mono);text-align:right;white-space:nowrap}
+.asin{font-family:var(--mono);font-size:13px}
+.ttl{color:var(--dim);font-size:12.5px;display:block;margin-top:2px;
+  max-width:330px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip{display:inline-block;padding:1px 7px;border-radius:3px;font-size:11.5px;
+  font-family:var(--mono)}
+.chip.new{background:rgba(79,180,119,.16);color:var(--ok)}
+.chip.upd{background:rgba(63,185,214,.16);color:var(--run)}
+.chip.dead{background:rgba(224,163,62,.16);color:var(--warn)}
+.chip.err{background:rgba(221,94,94,.16);color:var(--bad)}
+a{color:var(--run);text-decoration:none}
+a:hover{text-decoration:underline}
+
+.actions{display:flex;gap:12px;margin-top:26px}
+.btn2{padding:11px 20px;border:1px solid var(--line);background:transparent;
+  color:var(--ink);border-radius:5px;font-family:var(--sans);font-size:14px;cursor:pointer}
+.btn2:hover{border-color:var(--run);color:var(--run)}
+
+.hidden{display:none !important}
+
+/* ── variant toggle ── */
+.vrow{display:flex;align-items:center;gap:12px;padding:13px 15px;
+  background:var(--surface2);border:1px solid var(--line-soft);border-radius:5px;
+  margin-bottom:22px}
+.vrow .vtext{flex:1}
+.vrow .vtitle{font-size:14px;font-weight:600}
+.vrow .vsub{font-size:12.5px;color:var(--dim);margin-top:1px}
+.sw{position:relative;width:46px;height:26px;flex:none}
+.sw input{opacity:0;width:0;height:0}
+.sw .track{position:absolute;inset:0;background:var(--line);border-radius:26px;
+  cursor:pointer;transition:background .15s}
+.sw .track::before{content:"";position:absolute;width:20px;height:20px;left:3px;top:3px;
+  background:#fff;border-radius:50%;transition:transform .15s}
+.sw input:checked + .track{background:var(--run)}
+.sw input:checked + .track::before{transform:translateX(20px)}
+
+.sibbox{padding:14px 16px;background:var(--surface2);
+  border:1px solid var(--line-soft);border-radius:5px;margin-bottom:20px}
+.sibbox h3{font-size:13.5px;font-weight:600;margin-bottom:8px}
+.sibg{font-family:var(--mono);font-size:12.5px;color:var(--ink);
+  padding:5px 0;border-top:1px solid var(--line-soft)}
+.sibg:first-of-type{border-top:none}
+.sibg .gn{color:var(--run);font-weight:600}
+.sibg .mem{color:var(--dim)}
+:focus-visible{outline:2px solid var(--run);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{transition:none !important}}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="masthead">
+    <h1>Ten-ASIN Tool</h1>
+    <span class="sub">scrape &rarr; upload &rarr; price</span>
+    <span class="spacer"></span>
+    <div class="health">
+      <span><i class="led" id="ledShop"></i>{{ shop }}</span>
+      <span><i class="led" id="ledScrape"></i>Mr Scrape</span>
+    </div>
+  </header>
+
+  <!-- ══ FORM ══ -->
+  <section id="formView">
+    <div class="alert hidden" id="formErr"></div>
+
+    <div class="field">
+      <label for="asins">ASINs</label>
+      <div class="help">One per line, 1 to {{ max_asins }}. Or drop a .txt file below.</div>
+      <textarea id="asins" spellcheck="false" placeholder="B0DG33Q4K9&#10;B0GHYQMJZP&#10;B0GFWW8XR3"></textarea>
+      <div class="counter" id="asinCount">0 ASINs</div>
+      <div class="drop" id="asinDrop" style="margin-top:10px">
+        <span id="asinDropTxt">Drop a .txt file of ASINs, or click to browse</span>
+        <input type="file" id="asinFile" accept=".txt" hidden>
+      </div>
+    </div>
+
+    <!-- price override panel (synced to ASIN list) -->
+    <div class="field" id="priceField" style="display:none">
+      <label>Price override <span style="font-weight:400;color:var(--dim)">— optional</span></label>
+      <div class="help">Real USD price per ASIN — use this when Keepa's price is outdated. Blank = use Keepa's price. The formula still runs on whatever you enter (landed cost, not final ₹).</div>
+      <div id="priceRows"></div>
+    </div>
+
+
+    
+
+    <div class="pair">
+      <div class="field">
+        <label for="collection">Collection name</label>
+        <div class="help">Created on Shopify if it doesn't exist yet.</div>
+        <input type="text" id="collection" placeholder="Cetaphil" spellcheck="false">
+      </div>
+      <div class="field">
+        <label for="tag">Tag</label>
+        <div class="help">Applied to every product in this batch.</div>
+        <input type="text" id="tag" placeholder="Cetaphil" spellcheck="false">
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Keepa CSV</label>
+      <div class="help">Must contain every ASIN above. Supplies price, weight and barcode.</div>
+      <div class="drop" id="keepaDrop">
+        <span id="keepaDropTxt">Drop the Keepa export here, or click to browse</span>
+        <input type="file" id="keepaFile" accept=".csv" hidden>
+      </div>
+    </div>
+
+    <div class="vrow">
+      <div class="vtext">
+        <div class="vtitle">SEO mode</div>
+        <div class="vsub">After pricing, research each product (Amazon, Google, Lens) and generate SEO with Gemini. Opens Chrome, ~4-6 min per product.</div>
+      </div>
+      <label class="sw">
+        <input type="checkbox" id="seoMode">
+        <span class="track"></span>
+      </label>
+    </div>
+
+    <div class="vrow">
+      <div class="vtext">
+        <div class="vtitle">Variant mode</div>
+        <div class="vsub">After pricing, scrape Amazon variants and link them as sibling groups. Opens a Chrome window.</div>
+      </div>
+      <label class="sw">
+        <input type="checkbox" id="variantMode">
+        <span class="track"></span>
+      </label>
+    </div>
+
+    <button class="go" id="startBtn" disabled>Start run</button>
+  </section>
+
+  <!-- ══ RUNNING ══ -->
+  <section id="runView" class="hidden">
+    <div class="runbar" id="runBar"></div>
+
+    <div class="line" id="line"></div>
+    <div class="meter"><i id="meterFill"></i></div>
+    <div class="meterinfo">
+      <span id="phaseLabel">Starting</span>
+      <span id="elapsed">0s</span>
+    </div>
+
+    <div class="logbox" id="logBox"></div>
+  </section>
+
+  <!-- ══ RESULT ══ -->
+  <section id="doneView" class="hidden">
+    <div class="done-head">
+      <h2 id="doneTitle">Run finished</h2>
+      <span class="t" id="doneMeta"></span>
+    </div>
+    <div class="tally" id="tally"></div>
+    <div class="sibbox hidden" id="sibResult"></div>
+    <table id="resultTable">
+      <thead><tr>
+        <th>ASIN</th><th>Status</th><th class="num">Amazon</th>
+        <th class="num">Price</th><th class="num">MRP</th>
+        <th class="num">Weight</th><th>Open</th>
+      </tr></thead>
+      <tbody id="resultBody"></tbody>
+    </table>
+    <div class="actions">
+      <button class="btn2" id="againBtn">Run another batch</button>
+      <button class="btn2" id="logBtn">Show log</button>
+    </div>
+  </section>
+
+</div>
+
+<script>const MAX = {{ max_asins }};</script>
+
+{% raw %}
+<script>
+const STATIONS_BASE = ["Validate","Collection","Scrape","Upload","Pricing","Done"];
+function computeStations() {
+  const s = ["Validate","Collection","Scrape","Upload","Pricing"];
+  if ($("seoMode") && $("seoMode").checked) s.push("SEO");
+  if ($("variantMode") && $("variantMode").checked) s.push("Variants");
+  s.push("Done");
+  return s;
+}
+let STATIONS = STATIONS_BASE;
+const $ = id => document.getElementById(id);
+
+let keepaBlob = null, asinBlob = null, es = null, tick = null, startedAt = 0;
+let priceMap = {};
+
+/* ── health ── */
+fetch("/api/health").then(r => r.json()).then(h => {
+  $("ledShop").className   = "led " + (h.shopify   && h.shopify.ok   ? "up" : "down");
+  $("ledScrape").className = "led " + (h.mr_scrape && h.mr_scrape.ok ? "up" : "down");
+}).catch(() => {});
+
+/* ── build the line ── */
+function buildLine() {
+  STATIONS = computeStations();
+  const line = $("line");
+  line.innerHTML = "";
+  STATIONS.forEach(name => {
+    const d = document.createElement("div");
+    d.className = "station";
+    d.innerHTML = '<i class="pin"></i><span class="nm">' + name + '</span>';
+    line.appendChild(d);
+  });
+}
+buildLine();
+
+/* ── ASIN counting ── */
+function asinList() {
+  return ($("asins").value || "").toUpperCase()
+    .split(/[\s,;]+/).map(s => s.trim()).filter(Boolean)
+    .filter((v, i, a) => a.indexOf(v) === i);
+}
+function renderPriceRows(list) {
+  const valid = (list || asinList()).filter(a => /^[A-Z0-9]{10}$/.test(a));
+  const field = $("priceField"), box = $("priceRows");
+  Object.keys(priceMap).forEach(a => { if (!valid.includes(a)) delete priceMap[a]; });
+  if (!valid.length) { field.style.display = "none"; box.innerHTML = ""; return; }
+  field.style.display = "";
+  box.innerHTML = valid.map(a =>
+    '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">'
+    + '<span class="asin" style="flex:none;width:110px">' + a + '</span>'
+    + '<span style="color:var(--dim);font-family:var(--mono);font-size:13px">$</span>'
+    + '<input type="text" inputmode="decimal" data-asin="' + a + '" placeholder="Actual USD price" value="' + (priceMap[a] || "") + '" style="flex:1">'
+    + '</div>'
+  ).join("");
+  box.querySelectorAll("input[data-asin]").forEach(inp => {
+    inp.addEventListener("input", () => {
+      const v = inp.value.trim();
+      if (v) priceMap[inp.dataset.asin] = v; else delete priceMap[inp.dataset.asin];
+    });
+  });
+}
+function refresh() {
+  const list = asinList();
+  const bad  = list.filter(a => !/^[A-Z0-9]{10}$/.test(a));
+  const el   = $("asinCount");
+  let ready  = true, msg = list.length + " ASIN" + (list.length === 1 ? "" : "s");
+
+  el.className = "counter";
+  if (list.length === 0) { ready = false; }
+  else if (list.length > MAX) { msg += " — over the limit of " + MAX; el.className = "counter bad"; ready = false; }
+  else if (bad.length)       { msg += " — not valid: " + bad.slice(0,3).join(", "); el.className = "counter bad"; ready = false; }
+  else                       { el.className = "counter good"; }
+  el.textContent = msg;
+
+  if (!keepaBlob) ready = false;
+  if (!$("collection").value.trim()) ready = false;
+  if (!$("tag").value.trim()) ready = false;
+  renderPriceRows(list);
+  $("startBtn").disabled = !ready;
+}
+["asins","collection","tag"].forEach(id => $(id).addEventListener("input", refresh));
+
+/* ── file drops ── */
+function wireDrop(dropId, inputId, txtId, accept, onSet) {
+  const drop = $(dropId), input = $(inputId), txt = $(txtId);
+  drop.addEventListener("click", e => { if (!e.target.classList.contains("clear")) input.click(); });
+  drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("over"); });
+  drop.addEventListener("dragleave", () => drop.classList.remove("over"));
+  drop.addEventListener("drop", e => {
+    e.preventDefault(); drop.classList.remove("over");
+    if (e.dataTransfer.files.length) take(e.dataTransfer.files[0]);
+  });
+  input.addEventListener("change", () => { if (input.files.length) take(input.files[0]); });
+
+  function take(f) {
+    if (accept && !f.name.toLowerCase().endsWith(accept)) {
+      alert("Needs a " + accept + " file"); return;
+    }
+    onSet(f);
+    drop.classList.add("set");
+    txt.innerHTML = '<span class="fname">' + f.name + '</span>'
+      + '<span class="clear" data-c="1">remove</span>';
+    txt.querySelector('[data-c]').addEventListener("click", ev => {
+      ev.stopPropagation();
+      onSet(null); input.value = "";
+      drop.classList.remove("set");
+      txt.textContent = drop.dataset.idle;
+      refresh();
+    });
+    refresh();
+  }
+  drop.dataset.idle = txt.textContent;
+}
+wireDrop("keepaDrop","keepaFile","keepaDropTxt",".csv", f => { keepaBlob = f; });
+wireDrop("asinDrop","asinFile","asinDropTxt",".txt", f => {
+  asinBlob = f;
+  if (f) { const r = new FileReader(); r.onload = () => { $("asins").value = r.result; refresh(); }; r.readAsText(f); }
+});
+
+/* ── start ── */
+$("startBtn").addEventListener("click", async () => {
+  $("startBtn").disabled = true;
+  $("formErr").classList.add("hidden");
+
+  const fd = new FormData();
+  fd.append("asins", asinList().join("\n"));
+  fd.append("collection", $("collection").value.trim());
+  fd.append("tag", $("tag").value.trim());
+  const overrides = {};
+  Object.keys(priceMap).forEach(a => { const n = parseFloat(priceMap[a]); if (n > 0) overrides[a] = n; });
+  fd.append("price_overrides", JSON.stringify(overrides));
+  fd.append("keepa_csv", keepaBlob);
+  fd.append("variant_mode", $("variantMode").checked ? "true" : "false");
+  fd.append("seo_mode", $("seoMode").checked ? "true" : "false");
+  try { localStorage.setItem("ten_variant_mode", $("variantMode").checked ? "1" : "0"); } catch(e){}
+  try { localStorage.setItem("ten_seo_mode", $("seoMode").checked ? "1" : "0"); } catch(e){}
+
+  let res;
+  try { res = await fetch("/api/run", { method: "POST", body: fd }); }
+  catch (e) { return showFormError("Could not reach the server. Is it still running?"); }
+
+  if (!res.ok) {
+    let msg = "Could not start";
+    try { msg = (await res.json()).detail || msg; } catch (e) {}
+    return showFormError(msg);
+  }
+  const { job_id } = await res.json();
+  beginRun(job_id);
+});
+
+function showFormError(msg) {
+  const e = $("formErr");
+  e.textContent = msg;
+  e.classList.remove("hidden");
+  refresh();
+}
+
+/* ── live run ── */
+function beginRun(jobId) {
+  buildLine();
+  $("formView").classList.add("hidden");
+  $("doneView").classList.add("hidden");
+  $("runView").classList.remove("hidden");
+  $("logBox").innerHTML = "";
+  startedAt = Date.now();
+
+  $("runBar").innerHTML =
+      '<span><b>' + asinList().length + '</b> ASINs</span>'
+    + '<span>collection <b>' + esc($("collection").value.trim()) + '</b></span>'
+    + '<span>tag <b>' + esc($("tag").value.trim()) + '</b></span>'
+    + '<span>job <b>' + jobId + '</b></span>';
+
+  clearInterval(tick);
+  tick = setInterval(() => {
+    $("elapsed").textContent = Math.round((Date.now() - startedAt) / 1000) + "s";
+  }, 1000);
+
+  if (es) es.close();
+  es = new EventSource("/api/stream/" + jobId);
+  es.onmessage = ev => {
+    let d; try { d = JSON.parse(ev.data); } catch (e) { return; }
+    if (d.type === "log")    addLog(d);
+    if (d.type === "state")  applyState(d);
+    if (d.type === "done")   { finishRun(d.result); es.close(); }
+    if (d.type === "failed") { failRun(d.error);    es.close(); }
+  };
+  es.onerror = () => {
+    // SSE dropped — fall back to polling so the run is never invisible
+    es.close();
+    const poll = setInterval(async () => {
+      try {
+        const s = await (await fetch("/api/status/" + jobId)).json();
+        applyState(s);
+        $("logBox").innerHTML = "";
+        (s.logs || []).forEach(addLog);
+        if (s.status === "done")   { clearInterval(poll); finishRun(s.result); }
+        if (s.status === "failed") { clearInterval(poll); failRun(s.error); }
+      } catch (e) { clearInterval(poll); }
+    }, 2500);
+  };
+}
+
+function addLog(d) {
+  const box = $("logBox");
+  const stick = box.scrollTop + box.clientHeight >= box.scrollHeight - 40;
+  const row = document.createElement("div");
+  row.className = "ln " + (d.level || "info");
+  row.innerHTML = '<span class="t">' + d.time + '</span><span class="m">' + esc(d.message) + '</span>';
+  box.appendChild(row);
+  if (stick) box.scrollTop = box.scrollHeight;
+}
+
+function applyState(s) {
+  $("meterFill").style.width = (s.progress || 0) + "%";
+  const totalSteps = STATIONS.length;
+  // backend numbers phases 1-6; when variant mode adds a 7th station,
+  // the "Variants" work reports phase 6 name "Variants", and the final
+  // summary reports name "Done" — map that to the last station.
+  let activeIdx = (s.phase || 0) - 1;
+  const nm = (s.phase_name || "");
+  if (STATIONS[activeIdx] && STATIONS[activeIdx] !== nm) {
+    const byName = STATIONS.indexOf(nm);
+    if (byName !== -1) activeIdx = byName;
+  }
+  if (nm === "Done") activeIdx = STATIONS.length - 1;
+
+  $("phaseLabel").textContent =
+    s.phase ? ("Step " + (activeIdx + 1) + " of " + totalSteps + " — " + nm) : "Starting";
+  document.querySelectorAll(".station").forEach((el, i) => {
+    el.className = "station";
+    if (s.status === "failed" && i === activeIdx) el.classList.add("bad");
+    else if (i < activeIdx) el.classList.add("done");
+    else if (i === activeIdx) el.classList.add("now");
+  });
+}
+
+function failRun(err) {
+  clearInterval(tick);
+  document.querySelectorAll(".station.now").forEach(e => {
+    e.classList.remove("now"); e.classList.add("bad");
+  });
+  $("phaseLabel").textContent = "Stopped — " + err;
+  const again = document.createElement("button");
+  again.className = "btn2";
+  again.textContent = "Back to the form";
+  again.style.marginTop = "18px";
+  again.onclick = resetForm;
+  $("runView").appendChild(again);
+}
+
+/* ── results ── */
+function finishRun(r) {
+  clearInterval(tick);
+  $("runView").classList.add("hidden");
+  $("doneView").classList.remove("hidden");
+
+  $("doneTitle").textContent = "Run finished";
+  $("doneMeta").textContent =
+    r.elapsed_seconds + "s · collection " + r.collection.title
+    + (r.collection.created ? " (created)" : "") + " · tag " + r.tag;
+
+  const failed = Object.keys(r.failures || {}).length;
+  $("tally").innerHTML =
+      cell("ok", r.uploaded.created, "created")
+    + cell("",   r.uploaded.updated, "updated")
+    + cell("ok", r.priced.live,      "priced")
+    + cell("wa", r.priced.dead,      "dead")
+    + cell(failed ? "ba" : "", failed, "failed")
+    + (r.seo_mode ? cell("ok", (r.seo_results||[]).filter(x=>x.ok).length, "SEO") : "")
+    + (r.variant_mode ? cell("", (r.sibling_groups||[]).length, "sib groups") : "");
+
+  // sibling groups panel
+  const sibWrap = $("sibResult");
+  const sibs = r.sibling_groups || [];
+  if (r.variant_mode && sibs.length) {
+    sibWrap.classList.remove("hidden");
+    sibWrap.innerHTML = "<h3>Sibling groups</h3>" + sibs.map(g =>
+      '<div class="sibg"><span class="gn">' + esc(g.name) + '</span> '
+      + '<span class="mem">' + g.members.map(m =>
+          m.asin + (m.admin ? " (admin)" : "")
+          + (m.label ? " – " + esc(m.label) : "")
+        ).join(", ") + '</span>'
+      + (g.ok ? "" : ' <span style="color:var(--warn)">(errors)</span>')
+      + '</div>'
+    ).join("");
+  } else {
+    sibWrap.classList.add("hidden");
+    sibWrap.innerHTML = "";
+  }
+
+  $("resultBody").innerHTML = (r.products || []).map(p => {
+    if (!p.ok) {
+      return '<tr><td><span class="asin">' + p.asin + '</span></td>'
+        + '<td><span class="chip err">failed</span></td>'
+        + '<td colspan="5" style="color:var(--bad);font-size:12.5px">' + esc(p.error || "") + '</td></tr>';
+    }
+    const chip = p.dead
+      ? '<span class="chip dead">dead</span>'
+      : '<span class="chip ' + (p.action === "created" ? "new" : "upd") + '">' + p.action + '</span>';
+    return '<tr>'
+      + '<td><span class="asin">' + p.asin + '</span><span class="ttl">' + esc(p.title || "") + '</span></td>'
+      + '<td>' + chip + (p.reason ? '<span class="ttl">' + esc(p.reason) + '</span>' : '') + '</td>'
+      + '<td class="num">' + (p.amazon_usd != null ? "$" + p.amazon_usd.toFixed(2) : "—") + '</td>'
+      + '<td class="num">' + (p.price ? "\u20b9" + p.price.toLocaleString("en-IN") : "—") + '</td>'
+      + '<td class="num">' + (p.mrp   ? "\u20b9" + p.mrp.toLocaleString("en-IN")   : "—") + '</td>'
+      + '<td class="num">' + (p.weight_g ? p.weight_g + "g" : "—") + '</td>'
+      + '<td><a href="' + p.admin_url + '" target="_blank" rel="noopener">Shopify</a></td>'
+      + '</tr>';
+  }).join("");
+}
+
+function cell(cls, n, label) {
+  return '<div class="' + cls + '"><span class="n">' + (n || 0) + '</span><span class="l">' + label + '</span></div>';
+}
+
+$("againBtn").addEventListener("click", resetForm);
+$("logBtn").addEventListener("click", () => {
+  $("doneView").classList.add("hidden");
+  $("runView").classList.remove("hidden");
+});
+
+function resetForm() {
+  if (es) es.close();
+  clearInterval(tick);
+  $("doneView").classList.add("hidden");
+  $("runView").classList.add("hidden");
+  $("formView").classList.remove("hidden");
+  $("runView").querySelectorAll(".btn2").forEach(b => b.remove());
+  refresh();
+}
+
+function esc(s) {
+  return String(s == null ? "" : s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+try {
+  if (localStorage.getItem("ten_variant_mode") === "1") $("variantMode").checked = true;
+  if (localStorage.getItem("ten_seo_mode") === "1") $("seoMode").checked = true;
+} catch(e){}
+if ($("variantMode")) $("variantMode").addEventListener("change", buildLine);
+if ($("seoMode")) $("seoMode").addEventListener("change", buildLine);
+buildLine();
+
+refresh();
+</script>
+{% endraw %}
+</body>
+</html>

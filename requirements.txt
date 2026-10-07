@@ -1,0 +1,9 @@
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+httpx==0.28.1
+python-dotenv==1.0.1
+python-multipart==0.0.20
+pandas==2.2.3
+jinja2==3.1.5
+# Phase 6 variant mode only — the tool runs fine without it if you never use variant mode
+selenium==4.27.1

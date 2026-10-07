@@ -1,0 +1,15 @@
+# Chrome profile: Google login cookies - NEVER commit or copy to another PC
+chrome_variant_profile/
+# Python
+.venv/
+__pycache__/
+*.pyc
+# Secrets
+.env
+# Run data (uploads, progress, Keepa files)
+bulk_runs/
+*.csv
+!sample_bulk.csv
+# OS
+Thumbs.db
+desktop.ini
